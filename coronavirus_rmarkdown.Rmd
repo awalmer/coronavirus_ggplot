@@ -1,0 +1,55 @@
+---
+title: "COVID-19 Cases Over Time"
+author: "Auralee Walmer"
+date: "November 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Visualizing COVID-19 Cases Worldwide 
+### Updated November 27th 2020
+
+This exploration is based on a project from DataCamp.com, found here: <https://projects.datacamp.com/projects/870>. The goal here is to explore the trends in COVID-19 cases over time by country. The data is regularly updated, and I pulled an updated version of it on **November 27th, 2020**. Data accessible here: <https://github.com/RamiKrispin/coronavirus/tree/master/csv>.
+
+
+```{r datahead, message=FALSE}
+# Loading Libraries:
+library(readr)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+
+# Read in data
+coronavirus <- read.csv("/Volumes/Seagate Backup Plus Drive/DOWNLOADS/coronavirus.csv")
+kable(coronavirus[1:5,], caption = "A piece of the data.")
+
+```
+
+## Confirmed Cases Throughout the World
+
+Here's the cumulative trend in cases over time:
+
+```{r pressure, message=FALSE}
+# Build data frame consisting of cumulative cases
+cumulative <- coronavirus %>% 
+  group_by(date, country) %>%
+  summarise(value = sum(cases)) %>%
+  mutate(new_total_per_day = cumsum(value))
+cumulative <- cumulative[cumulative$country=="Zimbabwe",] # final country of the count
+cumulative <- cumulative[c("date","new_total_per_day")]
+cumulative$date <- as.Date(cumulative$date)
+cumulative$cumulative_over_time <- NA # prepare column for populating
+for (x in 1:nrow(cumulative)) {
+  cumulative$cumulative_over_time[x] <- sum(cumulative$new_total_per_day[1:x])
+}
+
+# Draw a line plot of cumulative cases vs. date
+ggplot(cumulative, aes(x=date, y=cumulative_over_time)) +
+geom_line() +
+ylab("Cumulative confirmed cases")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
