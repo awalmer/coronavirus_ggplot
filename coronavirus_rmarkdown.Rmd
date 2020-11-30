@@ -23,7 +23,8 @@ library(ggplot2)
 library(dplyr)
 
 # Read in data
-coronavirus <- read.csv("/Volumes/Seagate Backup Plus Drive/DOWNLOADS/coronavirus.csv")
+coronavirus <- read.csv("coronavirus.csv")
+coronavirus$date <- as.Date(coronavirus$date)
 kable(coronavirus[1:5,], caption = "A piece of the data.")
 
 ```
@@ -40,16 +41,89 @@ cumulative <- coronavirus %>%
   mutate(new_total_per_day = cumsum(value))
 cumulative <- cumulative[cumulative$country=="Zimbabwe",] # final country of the count
 cumulative <- cumulative[c("date","new_total_per_day")]
-cumulative$date <- as.Date(cumulative$date)
+## Cumulative cases over time
 cumulative$cumulative_over_time <- NA # prepare column for populating
 for (x in 1:nrow(cumulative)) {
   cumulative$cumulative_over_time[x] <- sum(cumulative$new_total_per_day[1:x])
 }
 
 # Draw a line plot of cumulative cases vs. date
+library(scales)
 ggplot(cumulative, aes(x=date, y=cumulative_over_time)) +
 geom_line() +
-ylab("Cumulative confirmed cases")
+  xlab("Date") + ylab("Cumulative Cases") +
+  labs(title = "Cumulative Confirmed Cases Worldwide",
+       caption = "Data from the Johns Hopkins University Center for Systems Science and Engineering Coronavirus repository.") +
+  scale_x_date(date_labels = "%b %Y", breaks = "2 months") + 
+  scale_y_continuous(n.breaks=15, labels = comma)
+
 ```
+
+## Comparing China with the Rest of the World
+
+```{r china, message=FALSE, include=FALSE}
+china <- coronavirus[coronavirus$country=="China",] ## NOTE THERE ARE REPEAT DATES BC PROVINCE
+not_china <- coronavirus[!coronavirus$country=="China",]
+
+## not china
+not_china_c <- by(not_china$cases, not_china$date, sum)
+not_china_c <- as.data.frame.table(not_china_c)
+#not_china_c <- as.data.frame(do.call(rbind,as.list(temp)))
+colnames(not_china_c) <- c("date","total cases per day")
+## Cumulative cases over time
+not_china_c$cumulative_over_time <- NA # prepare column for populating
+for (x in 1:nrow(not_china_c)) {
+  not_china_c$cumulative_over_time[x] <- sum(not_china_c$`total cases per day`[1:x])
+}
+not_china_c$is_china <- "Not China"
+
+
+## just china
+china_c <- by(china$cases, china$date, sum)
+china_c <- as.data.frame.table(china_c)
+colnames(china_c) <- c("date","total cases per day")
+china_c$cumulative_over_time <- NA # prepare column for populating
+for (x in 1:nrow(china_c)) {
+  china_c$cumulative_over_time[x] <- sum(china_c$`total cases per day`[1:x])
+}
+china_c$is_china <- "China"
+
+
+## join the data frames
+# stack merge
+cumulative_comparison <- merge(x=china_c, y=not_china_c, by="is_china", all=TRUE)
+#combine columns:
+cumulative_comparison$date.x[is.na(cumulative_comparison$date.x)] <- cumulative_comparison$date.y[is.na(cumulative_comparison$date.x)]
+
+cumulative_comparison$cumulative_over_time.x[is.na(cumulative_comparison$cumulative_over_time.x)] <- cumulative_comparison$cumulative_over_time.y[is.na(cumulative_comparison$cumulative_over_time.x)]
+
+cumulative_comparison <- cumulative_comparison[c("is_china","date.x","total cases per day.x", "cumulative_over_time.x")]
+colnames(cumulative_comparison) <- c("Is China?","Date","Total New Cases per Day", "Cumulative Cases Over Time")
+
+cumulative_comparison$Date <- as.Date(cumulative_comparison$Date)
+
+```
+
+```{r chinaplot, message=FALSE}
+ggplot(cumulative_comparison) +
+geom_line(aes(x=Date, y=`Cumulative Cases Over Time`, group=`Is China?`, color=`Is China?`)) +
+  xlab("Date") + ylab("Cumulative Cases") +
+  labs(title = "Cumulative Confirmed Cases Worldwide",
+       caption = "Data from the Johns Hopkins University Center for Systems Science and Engineering Coronavirus repository.") +
+  scale_x_date(date_labels = "%b %Y", breaks = "2 months") + 
+  scale_y_continuous(n.breaks=15, labels = comma)
+
+```
+```{r chinaplot_zoomed, message=FALSE}
+ggplot(cumulative_comparison) +
+geom_line(aes(x=Date, y=`Cumulative Cases Over Time`, group=`Is China?`, color=`Is China?`)) +
+  xlab("Date") + ylab("Cumulative Cases") +
+  labs(title = "Cumulative Confirmed Cases Worldwide",
+       caption = "Data from the Johns Hopkins University Center for Systems Science and Engineering Coronavirus repository.") +
+  scale_x_date(date_labels = "%b %Y", breaks = "1 month", limits=c(as.Date("2020-01-22"),as.Date("2020-05-01"))) + 
+  scale_y_continuous(n.breaks=10, labels = comma, limits = c(0,200000))
+
+```
+
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
