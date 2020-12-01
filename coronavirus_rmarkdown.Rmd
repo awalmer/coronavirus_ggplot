@@ -126,4 +126,34 @@ geom_line(aes(x=Date, y=`Cumulative Cases Over Time`, group=`Is China?`, color=`
 ```
 
 
+## Which countries have been hit the hardest?
+
+Let's take a look at the ranking of countries based on total cases.
+
+```{r ranking, message=FALSE, include=FALSE}
+
+ranking <- aggregate(coronavirus$cases, by=list(Country=coronavirus$country), FUN=sum)
+colnames(ranking) <- c("Country","Total Confirmed Cases")
+ranking <- ranking[order(-ranking$`Total Confirmed Cases`),]
+
+```
+
+```{r ranking_plot, message=FALSE}
+library(plotly)
+
+ranking$Country <- factor(ranking$Country, levels = ranking$Country[order(-ranking$`Total Confirmed Cases`)])
+
+barplot <- ggplot(ranking[1:10,]) +
+geom_bar(stat="identity", aes(x = Country, y = `Total Confirmed Cases`, fill=Country
+                                )) +
+scale_y_continuous(n.breaks=10, labels = comma)
+
+interactive <- ggplotly(barplot, tooltip = c("x","y"))
+
+interactive
+
+```
+
+
+
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
